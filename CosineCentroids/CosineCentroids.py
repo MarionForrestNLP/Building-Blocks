@@ -38,18 +38,15 @@ class Cluster:
 class Cosine_Centroids:
     def __init__(self,
             trainingMatrix:list[list[int|float]], 
-            nGroups: int = 3, 
-            threshold: float = 0.1, 
+            nGroups: int = 3,
             maxEpochs: int = 100
         ) -> None:
 
         self.trainingMatrix: list[list[int|float]] = trainingMatrix
         self.nGroups: int = nGroups
-        self.threshold: float = threshold
         self.maxEpochs: int = maxEpochs
 
         self.clusters: list[Cluster] = []
-        self.unassignedVectors: list[list[int|float]] = []
         self.epoch: int = 0
 
         # Auto train
