@@ -1,136 +1,103 @@
-# K Means Classifier
-
-Classes
-- [Cluster](#cluster)
-- [KMeans](#k-means)
-
-Notes
-- [Time Complexity](#time-complexity)
-- [Classification Threshold](#classification-threshold)
+# kMeans Clustering Model
 
 # Classes
 
 ## Cluster
-The cluster class represents a classified group of vectors.
+
+Represents a cluster of vectors
 
 ### Attributes
 
 - Name ( str ) : The name of the cluster. Used for identification purposes.
 - Centroid ( list[ int | float ] ) : The arithmetic mean vector of the cluster.
-- Vectors ( list [ list [ int | float ] ] ) : The vectors of the cluster
+- Vectors ( list [ list [ int | float ] ] ) : The vectors of the cluster.
 
 ### Methods
 
-#### Recalculate Centroid
+**Recalculate Centroid** : Recalculate the centroid of the cluster by taking the average of all assigned vectors. If there are no vectors, return the unchanged centroid.
 
-Recalculates the centroid of the cluster by taking the average of all assigned vectors. If there are no vectors, returns the unchanged centroid.
+    Returns
+    -------
+    bool
+        True if the centroid did not change, False if it did.
 
-Returns
-- list[int|float]: The new (or unchanged) centroid of the cluster.
-
-#### To Dictionary
-
-Converts the cluster object to a dictionary for easyier implementation into your own code.
-
-Returns
-- dict: A dictionary with keys "name", "centroid", and "vectors".
-
-## K Means
-The K Means class represents a kMeans clustering model. The model is train at initialization, a call to a "train" method is not required.
+## kMeans
 
 ### Attributes
-- trainingMatrix ( list [ list [ int | float ] ] ): The matrix of - vectors to train on.
+
+- trainingMatrix ( list[ list[ int | float ] ] ): The matrix of vectors to train on.
 - kGroups ( int ): The number of clusters to group the data into.
-- threshold ( float ): The threshold to stop convergence.
+- strategy ( str ): The strategy to use for assigning vectors to clusters.
 - maxEpochs ( int ): The maximum number of epochs to train for.
-- clusters ( list [ Cluster ] ): The list of clusters.
-- unassignedVectors ( list [ list [ int | float ] ] ): The list of - vectors that were not assigned to a cluster.
-- epoch ( int ): The number of epochs trained for.
+- clusters ( list[ Cluster ] ): The list of clusters.
+- normalized ( bool ): Whether or not the `trainingMatrix` was normalized during the training process.
 
 ### Methods
 
-**Fine Tine** : Retrain the model with new hyperparameters.
+**Train** : Train the model and return the number of epochs trained for.
 
-Parameters
-- kGroups ( int ): The new number of clusters to group the data into.
-- threshold ( float ): The new threshold to stop convergence.
-- maxEpochs ( int ): The new maximum number of epochs to train for.
+    Returns
+    -------
+    int
+        The number of epochs trained for.
 
-Returns
-- tuple: A tuple of the new clusters, the new unassigned vectors, and the new number of epochs trained for.
+**Predict** : Predict the cluster a given vector belongs to.
 
-**Predict** : Predict the cluster a given vector belongs to. Returns None if no cluster is found within the model's classification threshold. The model can also be retrained using the given vector.
+    Parameters
+    ----------
+    vector : list[ int | float ]
+        The vector to predict the cluster for.
 
-Parameters
-- vector ( list [ int | float ] ): The vector to classify.
-- retrain ( bool ): Whether to retrain the model using the new vector. Defaults to False.
+    Returns
+    -------
+    Cluster
+        The predicted cluster the vector belongs to.
 
-Returns
-- Cluster | None: The predicted cluster or None if no cluster was found.
+
 
 # Notes
 
 ## Time Complexity
 
-Model training takes O((n * d) + (n * k * e)) time in the worst case.
+Model training takes O(D * N * K * E) time in the worst case.
 
-- n = number of vectors in the training matrix
-- d = number of dimensions in the matrix
-- k = number of clusters being identified
-- e = maximum allowed epochs
+- E = maximum allowed epochs
+- K = number of clusters to group the data into
+- N = number of vectors in the training matrix
+- D = number of dimensions in the training matrix
 
-## Classification Threshold
+## Distance Calculations
 
-Whether a vector is grouped into a given cluster is determined by the following principle:
+This model seeks to assign vectors to a centroid of minimal distance, i.e. min(dist(v, c)). This implementation supports the following distance metrics for calculating the distance between two a vector $v$ and a centroid $c$ each with $d$ dimensions.
 
-```
-m = a matrix of vectors
-v = a given vector in m
-s = a given cluster
-c = the centroid of s
+### Euclidean Distance (Default)
 
-v is in s if:
-    dist(v, c) < max_dist(m) * T
+The Euclidean distance between two vectors is the square root of the sum of the squared differences between the corresponding elements of the vectors.
+
+```math
+dist(v, c) = \sqrt{ \sum_{i=1}^d (v_i - c_i)^2 }
 ```
 
-**dist(v, c)** : The euclidean distance between vector v and centroid c.
+### Cosine Distance
 
-```
-v = a vector with i dimensions
-c = a centroid with i dimensions
+The cosine distance between two vectors is one minus the cosine of the angle between the vectors. The cosine of the angle between the vectors is the dot product of the vectors divided by the product of the magnitudes of the vectors. Ranges from 0 to 1.
 
-distance(v, c) = sqrt( (v[1] - c[1])^2 + (v[2] - c[2])^2 + ... + (v[i] - c[i])^2 )
-```
-
-**max_dist(m)** : The maximum possible distance between any two vectors in matrix m. This is calculated using a formula jointedly discovered by RJ Clines and Marion Forrest, two undergraduate students at the University of North Florida.
-```
-m = a matrix of vectors
-l = largest scalar in m
-s = smallest scalar in m
-d = the number of dimensions in m
-
-max_distance(m) = (l - s) * sqrt( d )
+```math
+dist(v, c) = 1 - \frac{ \sum_{i=1}^d v_i c_i }{ \sqrt{\sum_{i=1}^d v_i^2} \sqrt{\sum_{i=1}^d c_i^2} }
 ```
 
-**T** : The value of the `threshold` parameter of the kMeans class. Ranges from 0 to 1. Defaults to 0.1
+### Manhattan Distance
 
-*Example*
+The Manhattan distance between two vectors is the sum of the absolute differences between the corresponding elements of the vectors.
+
+```math
+dist(v, c) = \sum_{i=1}^d |v_i - c_i|
 ```
-m = [
-    [1, 1, 3],
-    [4, -5, 2],
-    [7, -8, 0]
-]
-v = [4, -5, 2]
-s = Cluster{}
-c = [4, 8, 9]
 
-v is in s if:
-    dist(v, c) < max_dist(m) * T
-    \/
-    14.7648 < 25.9807 * 0.1
-    \/
-    14.7648 < 2.5980
-    \/
-    False, v is not in s
+### Chebyshev Distance
+
+The Chebyshev distance between two vectors is the maximum of the absolute differences between the corresponding elements of the vectors.
+
+```math
+dist(v, c) = \max_{i=1}^d |v_i - c_i|
 ```

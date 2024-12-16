@@ -1,312 +1,420 @@
-from random import randint, choice
+from random import choices
+from typing import Callable
 
 class Cluster:
-    def __init__(
-        self, 
-        name: str, 
-        centroid: list[int|float] = []
-    ):
-        """Initialize a cluster with its name, centroid, and vectors."""
+    """
+    A class representing a cluster in a clustering algorithm.
 
+    Attributes
+    ----------
+    name : str
+        The name of the cluster.
+    centroid : list[int|float]
+        The centroid of the cluster.
+    vectors : list[list[int|float]]
+        A list of vectors assigned to the cluster.
+
+    Methods
+    -------
+    Recalculate_Centroid() -> bool
+        Recalculate the centroid of the cluster.
+    """
+
+    def __init__(self, name: str, centroid: list[int|float] = []):
+        """
+        Initialize a cluster with a name and centroid.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the cluster.
+        centroid : list[int|float], optional
+            The centroid of the cluster.
+        """
         self.name = name
         self.centroid = centroid
         self.vectors: list[list[int|float]] = []
 
-    def Recalculate_Centroid(self) -> list[int|float]:
+    def _Average_Vector(self, vectors: list[list[int|float]]) -> list[int|float]:
         """
-        Recalculates the centroid of the cluster by taking the average of all
-        assigned vectors. If there are no vectors, returns the unchanged centroid.
+        Calculate the average vector from a list of vectors.
 
-        Returns:
-            list[int|float]: The new centroid of the cluster.
+        Parameters
+        ----------
+        vectors : list[list[int|float]]
+            A list of vectors to average.
+
+        Returns
+        -------
+        list[int|float]
+            The average vector.
         """
-        
-        # If there are no vectors, return the unchanged centroid
-        if self.vectors == []:
-            return self.centroid
 
-        vectorCount: int = len(self.vectors)
-        dimensionCount: int = len(self.vectors[0])
+        dimensionality: int = len(vectors[0])
+        sumVector: list[int|float] = [0] * dimensionality
 
-        # Sum of vectors
-        sumVector: list[int|float] = [0] * dimensionCount
-        for vector in self.vectors:
-            for i in range(dimensionCount):
+        for vector in vectors:
+            for i in range(dimensionality):
                 sumVector[i] += vector[i]
 
-        # Average of vectors
-        for i in range(dimensionCount):
-            sumVector[i] = round((sumVector[i] / vectorCount), 4)
+        for i in range(dimensionality):
+            sumVector[i] = round((sumVector[i] / len(vectors)), 4)
 
-        # Reassign the centroid
-        self.centroid = sumVector
         return sumVector
-        
-    def To_Dict(self) -> dict[str, str | list[int|float] | list[list[int|float]]]:
+    
+    def Recalculate_Centroid(self) -> bool:
+        # If there are no vectors, return the unchanged centroid
         """
-        Convert the cluster object to a dictionary format.
+        Recalculate the centroid of the cluster by taking the average of all
+        assigned vectors. If there are no vectors, return the unchanged centroid.
 
-        Returns:
-            dict: A dictionary with keys "name", "centroid", and "vectors".
+        Returns
+        -------
+        bool
+            True if the centroid did not change, False if it did.
         """
 
+        if self.vectors == []: return True
+
+        previousCentroid: list[int|float] = self.centroid
+        self.centroid = self._Average_Vector(self.vectors)
+
+        return previousCentroid == self.centroid
+    
+    def __dict__(self) -> dict:
         return {
             "name": self.name,
             "centroid": self.centroid,
             "vectors": self.vectors
-        }    
-class K_Means:
-    def __init__(self, trainingMatrix:list[list[int|float]], kGroups: int = 3, threshold: float = 0.1, maxEpochs: int = 100):
-        """
-        Initialize a K-Means model with a training matrix and hyperparameters.
+        }
+    
+    def __str__(self) -> str:
+        return f"Cluster: {self.name}, Centroid: {self.centroid}, Vectors: {self.vectors}"
+    
+class kMeans:
+    """
+    kMeans model for clustering vectors.
 
-        Parameters:
-            trainingMatrix (list[list[int|float]]): The matrix of vectors to train on.
-            kGroups (int): The number of clusters to group the data into. Defaults to 3.
-            threshold (float): The threshold to stop convergence. Defaults to 0.1.
-            maxEpochs (int): The maximum number of epochs to train for. Defaults to 100.
+    Attributes
+    ----------
+    trainingMatrix : list[ list[ int | float ] ]
+        The matrix of vectors to train on.
+    
+    kGroups : int
+        The number of clusters to group the data into.
+    
+    strategy : str
+        The strategy to use for assigning vectors to clusters.
+    
+    maxEpochs : int
+        The maximum number of epochs to train for.
 
-        Attributes:
-            trainingMatrix (list[list[int|float]]): The matrix of vectors to train on.
-            kGroups (int): The number of clusters to group the data into.
-            threshold (float): The threshold to stop convergence.
-            maxEpochs (int): The maximum number of epochs to train for.
-            clusters (list[Cluster]): The list of clusters.
-            unassignedVectors (list[list[int|float]]): The list of vectors that were not assigned to a cluster.
-            epoch (int): The number of epochs trained for.
+    clusters : list[ Cluster ]
+        A list of clusters.
+
+    Methods
+    -------
+    Train()
+        Train the model.
+
+    Predict(vector: list[int|float])
+        Predict the cluster for a given vector.
+    """
+
+    def __init__(self,
+            trainingMatrix:list[list[int|float]], 
+            kGroups: int = 3,
+            strategy: str = "euclidean",
+            maxEpochs: int = 100
+        ) -> None:
         """
+        Initialize a kMeans model with a training matrix and hyperparameters.
+
+        Parameters
+        ----------
+        trainingMatrix : list[ list[ int | float ] ]
+            The matrix of vectors to train on.
         
+        kGroups : int, optional
+            The number of clusters to group the data into. (Default is 3).
+        
+        strategy : str, optional
+            The strategy to use for assigning vectors to clusters.\n
+            "euclidean": Assign vectors to the cluster with the lowest *Euclidean* distance.\n
+            "cosine": Assign vectors to the cluster with the highest *Cosine* similarity.\n
+            "manhattan": Assign vectors to the cluster with the lowest *Manhattan* distance.\n
+            "chebyshev": Assign vectors to the cluster with the lowest *Chebyshev* distance.\n
+            (Default is "euclidean").
+        
+        maxEpochs : int, optional
+            The maximum number of epochs to train for. (Default is 100).
+        """
+
         self.trainingMatrix: list[list[int|float]] = trainingMatrix
         self.kGroups: int = kGroups
-        self.threshold: float = threshold
         self.maxEpochs: int = maxEpochs
+        self.strategy = strategy
+
         self.clusters: list[Cluster] = []
-        self.unassignedVectors: list[list[int|float]] = []
-        self.epoch: int = 0
-
-        # Clamp threshold
-        if self.threshold < 0:
-            self.threshold = 0
-        if self.threshold > 1:
-            self.threshold = 1
-        
-        # Train the model
-        self.clusters, self.unassignedVectors, self.epoch = self._Train(
-            matrix=self.trainingMatrix,
-            k=self.kGroups,
-            threshold=self.threshold,
-            maxEpochs=self.maxEpochs
-        )
-
-    def Fine_Tune(self, kGroups:int, threshold:float, maxEpochs:int) -> tuple[list[Cluster], list[list[int|float]], int]:
-        """
-        Fine tune the model by retraining with new hyperparameters.
-
-        Parameters:
-            kGroups (int): The new number of clusters to group the data into.
-            threshold (float): The new threshold to stop convergence.
-            maxEpochs (int): The new maximum number of epochs to train for.
-
-        Returns:
-            tuple: A tuple of the new clusters, the new unassigned vectors, and the new number of epochs trained for.
-        """
-
-        self.kGroups = kGroups
-        self.threshold = threshold
-        self.maxEpochs = maxEpochs
-
-        self.clusters, self.unassignedVectors, self.epoch = self._Train(
-            matrix=self.trainingMatrix,
-            k=self.kGroups,
-            threshold=self.threshold,
-            maxEpochs=self.maxEpochs
-        )
     
-    def Predict(self, vector: list[int|float], retrain: bool = False) ->tuple[list[int|float], Cluster | None]:
+    def _Initialize_Clusters(self) -> list[Cluster]:
         """
-        Predict the cluster of a given vector.
+        Initialize clusters with random vectors from the training matrix.
 
-        Parameters:
-            vector (list[int|float]): The vector to classify.
-            retrain (bool): Whether to retrain the model using the new vector. Defaults to False.
-
-        Returns:
-            tuple[list[int|float], Cluster | None]: A tuple of the vector and the predicted cluster or None if no cluster was found.
+        Returns
+        -------
+        list[Cluster]
+            A list of initialized clusters.
         """
-        if retrain:
-            temp: list[list[int|float]] = self.trainingMatrix
-            temp.append(vector)
-            self.trainingMatrix = temp
+        clusters: list[Cluster] = []
+        randomVectors: list[list[int|float]] = choices(self.trainingMatrix, k=self.kGroups)
 
-            self.clusters, self.unassignedVectors, self.epoch = self._Train(
-                matrix=self.trainingMatrix,
-                k=self.kGroups,
-                threshold=self.threshold,
-                maxEpochs=self.maxEpochs
+        for i in range(self.kGroups):
+            clusters.append(
+                Cluster(
+                    name=f"cluster_{i}",
+                    centroid=randomVectors[i]
+                )
             )
 
-        closestDistance: float = Calc_Max_Possible_Distance(self.trainingMatrix) * self.threshold
-        closestCluster: Cluster = None
+        return clusters
+    
+    def _Validate_Dimensionality(self, aVector: list[int|float], bVector: list[int|float]) -> None:
+        """
+        Validates that two vectors have the same dimensionality.
 
-        for clusterObject in self.clusters:
-            currentDistance: float = Calc_Distance(aVector=vector, bVector=clusterObject.centroid)
+        Parameters
+        ----------
+        aVector : list[ int | float ]
+            The first vector.
+        bVector : list[ int | float ]
+            The second vector.
 
-            if currentDistance < closestDistance:
-                closestDistance = currentDistance
-                closestCluster = clusterObject
+        Raises
+        ------
+        ValueError
+            If the vectors do not have the same dimensionality.
+        """
 
-        if closestCluster == None:
-            return (vector, None)
+        if len(aVector) != len(bVector):
+            raise ValueError(f"Vectors must have the same dimensionality: {len(aVector)} != {len(bVector)}")
+
+    def _Cosine_Similarity(self, aVector: list[int|float], bVector: list[int|float]) -> float:
+        """
+        Calculates the cosine similarity between two vectors and returns the "*cosine distance*".
+
+        Parameters
+        ----------
+        aVector : list[ int | float ]
+            The first vector.
+        bVector : list[ int | float ]
+            The second vector.
+
+        Returns
+        -------
+        float
+            The Cosine Similarity of the two vectors. Ranges from 0 to 1.
+
+        Raises
+        ------
+        ValueError
+            If the vectors do not have the same dimensionality.
+        """
+        
+        self._Validate_Dimensionality(aVector, bVector)
+
+        dotProduct: float = sum(a * b for a, b in zip(aVector, bVector))
+        magnitudeA: float = sum(a * a for a in aVector) ** 0.5
+        magnitudeB: float = sum(b * b for b in bVector) ** 0.5
+
+        return 1 - (dotProduct / (magnitudeA * magnitudeB))
+    
+    def _Euclidean_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
+        """
+        Calculates the Euclidean distance between two vectors.
+
+        Parameters
+        ----------
+        aVector : list[ int | float ]
+            The first vector.
+        bVector : list[ int | float ]
+            The second vector.
+
+        Returns
+        -------
+        float
+            The Euclidean distance between the two vectors.
+
+        Raises
+        ------
+        ValueError
+            If the vectors do not have the same dimensionality.
+        """
+        
+        self._Validate_Dimensionality(aVector, bVector)
+
+        distance: float = 0.0
+        preRootSum: float = 0.0
+
+        # Sum of squared differences
+        for i in range(len(aVector)):
+            preRootSum += (aVector[i] - bVector[i])**2
+
+        # Square root of the sum of squared differences
+        distance = round((preRootSum**0.5), 4)
+
+        return distance
+    
+    def _Manhattan_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
+        """
+        Calculate the Manhattan distance between two vectors.
+
+        Parameters
+        ----------
+        aVector : list[int|float]
+            The first vector.
+        bVector : list[int|float]
+            The second vector.
+
+        Returns
+        -------
+        float
+            The Manhattan distance between the two vectors.
+
+        Raises
+        ------
+        ValueError
+            If the vectors do not have the same dimensionality.
+        """
+
+        self._Validate_Dimensionality(aVector, bVector)
+
+        distance: float = 0.0
+
+        for i in range(len(aVector)):
+            distance += abs(aVector[i] - bVector[i])
+
+        return distance
+    
+    def _Chebyshev_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
+        """
+        Calculate the Chebyshev distance between two vectors.
+
+        Parameters
+        ----------
+        aVector : list[int|float]
+            The first vector.
+        bVector : list[int|float]
+            The second vector.
+
+        Returns
+        -------
+        float
+            The Chebyshev distance between the two vectors.
+
+        Raises
+        ------
+        ValueError
+            If the vectors do not have the same dimensionality.
+        """
+
+        self._Validate_Dimensionality(aVector, bVector)
+
+        distance: float = 0.0
+
+        for i in range(len(aVector)):
+            distance = max(distance, abs(aVector[i] - bVector[i]))
+
+        return distance
+    
+    def _Strategy_Function(self) -> Callable:
+        """
+        Returns a tuple with the function used for calculating the **fit** of a centroid
+        and the optimization function to use to find the best fitting centroid.
+
+        Returns
+        -------
+        tuple[ callable ]
+            A tuple with the fit function (0) and the optimization function (1).
+        """
+
+        if self.strategy == "euclidean":
+            return self._Euclidean_Between
+        elif self.strategy == "cosine":
+            return self._Cosine_Similarity
+        elif self.strategy == "manhattan":
+            return self._Manhattan_Between
+        elif self.strategy == "chebyshev":
+            return self._Chebyshev_Between
+        
         else:
-            return (vector, closestCluster)
-        
-    def To_Dict(self) -> dict:
+            return self._Euclidean_Between
+
+    def Train(self) -> int:
         """
-        Convert the model to a dictionary.
+        Trains the kMeans model.
 
-        Returns:
-            dict: A dictionary representation of the model.
-        """
-        return {
-            "clusters": [cluster.To_Dict() for cluster in self.clusters],
-            "unassignedVectors": self.unassignedVectors,
-            "epoch": self.epoch
-        }
-
-    def _Train(self, matrix:list[list[int|float]], k:int, threshold:float, maxEpochs:int) -> tuple[list[Cluster], list[list[int|float]], int]:
-        """
-        Train the model using a given matrix, number of clusters, threshold, and maximum epochs.
-
-        Parameters:
-            matrix (list[list[int|float]]): The matrix of vectors to train on.
-            k (int): The number of clusters to group the data into.
-            threshold (float): The threshold to stop convergence.
-            maxEpochs (int): The maximum number of epochs to train for.
-
-        Returns:
-            tuple: A tuple of the clusters, the unassigned vectors, and the number of epochs trained for.
+        Returns
+        -------
+        int
+            The number of epochs it took to converge.
         """
 
-        maxDist = Calc_Max_Possible_Distance(matrix)
-        startingMinDist: float = maxDist * threshold
+        # Initialize clusters
+        self.clusters = self._Initialize_Clusters()
+
+        # Initialize variables
+        epoch: int = 0
         isConverged: bool = False
-        epoch = 0
-        
-        # Create k empty clusters
-        clusters: list[Cluster] = [
-            Cluster(
-                name=f"cluster_{i}",
-                centroid=choice(matrix), # Randomly select a vector from the matrix
-            ) for i in range(self.kGroups)
-        ]
+        stratFunc = self._Strategy_Function()
 
-        # Add a cluster to store unassigned vectors
-        clusters.append(Cluster(
-            name="unassigned",
-            centroid=choice(matrix), # Randomly select a vector from the matrix
-        ))
+        while not isConverged and epoch < self.maxEpochs:
+            # Clear the clusters
+            for cluster in self.clusters: cluster.vectors = []
 
-        while not isConverged:
-            # Clear the vectors in each cluster
-            for clusterObject in clusters:
-                clusterObject.vectors = []
+            # Assign vectors to clusters
+            for vector in self.trainingMatrix:
+                # Calculate centroid separations
+                centroidSeparations: dict[int, float] = {
+                    centroid: stratFunc(vector, cluster.centroid) for centroid, cluster in enumerate(self.clusters)
+                }
 
-            # Assign each vector in the matrix to its closest centroid
-            for vector in matrix:
-                closestCluster: Cluster = clusters[-1]  # Initialize to the unassgined cluster
-                closestClusterDistance: float = startingMinDist
+                # Get the closest centroid
+                closestCentroid: int = min(centroidSeparations, key=centroidSeparations.get)
 
-                for clusterObject in clusters:
-                    # Calculate the distance between the vector and the centroid
-                    currentDistance: float = Calc_Distance(
-                        aVector=vector,
-                        bVector=clusterObject.centroid,
-                    )
+                # Add the vector to the closest centroid
+                self.clusters[closestCentroid].vectors.append(vector)
 
-                    # Conduct comparison
-                    if currentDistance < closestClusterDistance:
-                        closestCluster = clusterObject
-                        closestClusterDistance = currentDistance
+            # Calculate new centroids and check for convergence
+            convergenceArray: list[bool] = [
+                cluster.Recalculate_Centroid() for cluster in self.clusters
+            ]
+            isConverged = all(convergenceArray)
 
-                # Add the vector to the closest cluster
-                closestCluster.vectors.append(vector)
-
-            # Recalculate the centroid of each cluster
-            for clusterObject in clusters:
-                oldCentroid: list[int|float] = clusterObject.centroid
-                newCentroid: list[int|float] = clusterObject.Recalculate_Centroid()
-
-                if oldCentroid != newCentroid:
-                    clusterObject.centroid = newCentroid
-                    isConverged = False
-                else:
-                    isConverged = True
-
+            # Increment epoch
             epoch += 1
-            if epoch > maxEpochs:
-                break
 
-        # Seperate the unassigned vectors from the clusters
-        unassignedVectors: list[list[int|float]] = clusters[-1].vectors
-        clusters = clusters[:-1]
-
-        return clusters, unassignedVectors, epoch
-
-def Calc_Distance(aVector: list[int|float], bVector: list[int|float]) -> float:
-    """
-    Calculate the Euclidean distance between two vectors.
-
-    Parameters:
-        aVector (list[int|float]): The first vector.
-        bVector (list[int|float]): The second vector.
-
-    Returns:
-        float: The Euclidean distance between the two vectors.
-
-    Raises:
-        ValueError: If the vectors do not have the same dimensionality.
-    """
+        return epoch
     
-    if len(aVector) != len(bVector):
-        raise ValueError(f"Vectors must have the same dimensionality: {len(aVector)} != {len(bVector)}")
+    def Predict(self, vector: list[int|float]) -> Cluster:
+        """
+        Predicts the cluster to which a given vector belongs.
 
-    distance: float = 0.0
-    preRootSum: float = 0.0
+        Parameters
+        ----------
+        vector : list[ int | float ]
+            The vector to predict the cluster for.
 
-    # Sum of squared differences
-    for i in range(len(aVector)):
-        preRootSum += (aVector[i] - bVector[i])**2
+        Returns
+        -------
+        Cluster
+            The predicted cluster the vector belongs to.
+        """
 
-    # Square root of the sum
-    distance = preRootSum**0.5
+        stratFunc = self._Strategy_Function()
+        centroidSeparations: dict[int, float] = {
+            centroid: stratFunc(vector, cluster.centroid) for centroid, cluster in enumerate(self.clusters)
+        }
+        clusterIndex: int = min(centroidSeparations, key=centroidSeparations.get)
+        return self.clusters[clusterIndex]
 
-    return distance
-    
-def Calc_Max_Possible_Distance(matrix: list[list[int|float]]) -> float:
-    """
-    Calculate the maximum possible Euclidean distance in a given matrix.
-
-    Parameters:
-        matrix (list[list[int|float]]): The matrix to calculate the maximum distance for.
-
-    Returns:
-        float: The maximum possible Euclidean distance in the matrix.
-    """
-
-    dimensionCount: int = len(matrix[0])
-    maxScalar: float|int = 0.0
-    minScalar: float|int = 0.0
-
-    # Find the maximum scalar in the matrix
-    for vector in matrix:
-        currentMax: float|int = max(vector)
-        if currentMax > maxScalar:
-            maxScalar = currentMax
-
-    # Find the minimum scalar in the matrix
-    for vector in matrix:
-        currentMin: float|int = min(vector)
-        if currentMin < minScalar:
-            minScalar = currentMin
-
-    return (maxScalar - minScalar) * (dimensionCount**0.5)
