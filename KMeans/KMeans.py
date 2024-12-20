@@ -1,6 +1,30 @@
 from random import choices
 from typing import Callable
 
+class Distance_Functions:
+    def Euclidean_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
+        """
+        Calculate the Euclidean distance between two vectors.
+
+        Parameters
+        ----------
+        aVector : list[int|float]
+            The first vector.
+        bVector : list[int|float]
+            The second vector.
+
+        Returns
+        -------
+        float
+            The Euclidean distance between the two vectors.
+        """
+        distance: float = 0.0
+
+        for i in range(len(aVector)):
+            distance += (aVector[i] - bVector[i]) ** 2
+
+        return distance ** 0.5
+
 class Cluster:
     """
     A class representing a cluster in a clustering algorithm.
@@ -35,7 +59,7 @@ class Cluster:
         self.centroid = centroid
         self.vectors: list[list[int|float]] = []
 
-    def _Average_Vector(self, vectors: list[list[int|float]]) -> list[int|float]:
+    def _Mean_Vector(self, vectors: list[list[int|float]]) -> list[int|float]:
         """
         Calculate the average vector from a list of vectors.
 
@@ -62,8 +86,43 @@ class Cluster:
 
         return sumVector
     
-    def Recalculate_Centroid(self) -> bool:
-        # If there are no vectors, return the unchanged centroid
+    def _Median_Vector(self, vectors: list[list[int|float]]) -> list[int|float]:
+        """
+        Calculate the median vector from a list of vectors.
+
+        Parameters
+        ----------
+        vectors : list[list[int|float]]
+            A list of vectors to find the median of.
+
+        Returns
+        -------
+        list[int|float]
+            The median vector.
+        """
+
+        sampleSize: int = max(1, len(vectors) // 3.33) # ~30% of the vectors
+        sampleSet: list[list[int|float]] = choices(vectors, k=sampleSize)
+        distanceSums: list[float] = []
+
+        for aVector in sampleSet:
+            distanceSum: float = 0.0
+
+            for bVector in vectors:
+                distanceSum += Distance_Functions().Euclidean_Between(aVector=aVector, bVector=bVector)
+
+            distanceSums.append(distanceSum)
+
+        medianVector: list[int|float] = sampleSet[0]
+        minDistance: float = float('inf')
+        for i in range(len(distanceSums)):
+            if distanceSums[i] < minDistance:
+                minDistance = distanceSums[i]
+                medianVector = sampleSet[i]
+
+        return medianVector
+
+    def Recalculate_Centroid(self, medians: bool = False) -> bool:
         """
         Recalculate the centroid of the cluster by taking the average of all
         assigned vectors. If there are no vectors, return the unchanged centroid.
@@ -74,10 +133,15 @@ class Cluster:
             True if the centroid did not change, False if it did.
         """
 
+        # If there are no vectors, return the unchanged centroid
         if self.vectors == []: return True
 
         previousCentroid: list[int|float] = self.centroid
-        self.centroid = self._Average_Vector(self.vectors)
+
+        if medians:
+            self.centroid = self._Median_Vector(self.vectors)
+        else:
+            self.centroid = self._Mean_Vector(self.vectors)
 
         return previousCentroid == self.centroid
     
@@ -153,7 +217,7 @@ class kMeans:
         self.trainingMatrix: list[list[int|float]] = trainingMatrix
         self.kGroups: int = kGroups
         self.maxEpochs: int = maxEpochs
-        self.strategy = strategy
+        self.strategy = strategy.lower()
 
         self.clusters: list[Cluster] = []
     
@@ -227,7 +291,9 @@ class kMeans:
         magnitudeA: float = sum(a * a for a in aVector) ** 0.5
         magnitudeB: float = sum(b * b for b in bVector) ** 0.5
 
-        return 1 - (dotProduct / (magnitudeA * magnitudeB))
+        denominator: float = max(0.001, magnitudeA * magnitudeB) # Prevents division by zero
+
+        return 1 - (dotProduct / denominator)
     
     def _Euclidean_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
         """
@@ -350,7 +416,7 @@ class kMeans:
         else:
             return self._Euclidean_Between
 
-    def Train(self) -> int:
+    def Train(self, medians: bool = False) -> int:
         """
         Trains the kMeans model.
 
@@ -387,7 +453,7 @@ class kMeans:
 
             # Calculate new centroids and check for convergence
             convergenceArray: list[bool] = [
-                cluster.Recalculate_Centroid() for cluster in self.clusters
+                cluster.Recalculate_Centroid(medians=medians) for cluster in self.clusters
             ]
             isConverged = all(convergenceArray)
 
