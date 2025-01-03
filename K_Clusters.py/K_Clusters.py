@@ -282,9 +282,9 @@ class Cluster:
 
         return str(self.__dict__())
     
-class kMeans:
+class K_Clusters:
     """
-    kMeans model for clustering vectors.
+    K-Clusters model for clustering vectors with either mean or median centroids.
 
     Attributes
     ----------
@@ -326,7 +326,7 @@ class kMeans:
             maxEpochs: int = 100
         ) -> None:
         """
-        Initialize a kMeans model with a training matrix and hyperparameters.
+        Initialize a K-Clusters model with a training matrix and hyperparameters.
 
         Parameters
         ----------
@@ -451,7 +451,7 @@ class kMeans:
 
     def Train(self) -> int:
         """
-        Trains the kMeans model.
+        Trains the K-Clusters model.
 
         Returns
         -------
@@ -539,7 +539,7 @@ class kMeans:
 
     def __dict__(self) -> dict:
         """
-        Converts the parameters of the kMeans model into a dictionary.
+        Converts the parameters of the K-Clusters model into a dictionary.
 
         Returns
         -------
@@ -558,12 +558,12 @@ class kMeans:
     
     def __str__(self) -> str:
         """
-        Converts the parameters of the kMeans model into a string.
+        Converts the parameters of the K-Clusters model into a string.
 
         Returns
         -------
         str
-            A string representation of the kMeans model.
+            A string representation of the K-Clusters model.
         """
 
         return str(self.__dict__())

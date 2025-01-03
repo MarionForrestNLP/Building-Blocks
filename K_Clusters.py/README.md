@@ -1,3 +1,18 @@
+# K-Clusters Model
+
+[Dependencies](#dependencies)
+
+[Classes](#classes)
+- [Cluster](#cluster)
+- [K-Clusters](#k-clusters)
+
+[Distance Metrics](#distance-metrics)
+- [Euclidean Distance](#euclidean-distance)
+- [Cosine Distance](#cosine-distance)
+- [Manhattan Distance](#manhattan-distance)
+
+[Time Complexity](#time-complexity)
+
 # Dependencies
 
 - Imports the `choices` function from the standard `random` module
@@ -35,7 +50,9 @@ Represents a cluster of vectors
     bool
         True if the centroid did not change, False if it did.
 
-## kMeans
+## K-Clusters
+
+K-Clusters model for clustering vectors with either mean or median centroids.
 
 ### Attributes
 
