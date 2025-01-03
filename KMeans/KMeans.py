@@ -115,37 +115,6 @@ class Distance_Functions:
             distance += abs(aVector[i] - bVector[i])
 
         return distance
-    
-    def Chebyshev_Between(self, aVector: list[int|float], bVector: list[int|float]) -> float:
-        """
-        Calculates the Chebyshev distance between two vectors.
-
-        Parameters
-        ----------
-        aVector : list[int|float]
-            The first vector.
-        bVector : list[int|float]
-            The second vector.
-
-        Returns
-        -------
-        float
-            The Chebyshev distance between the two vectors.
-
-        Raises
-        ------
-        ValueError
-            If the vectors do not have the same dimensionality.
-        """
-
-        self._Verify_Dimensionality(aVector, bVector)
-        
-        distance: float = 0.0
-
-        for i in range(len(aVector)):
-            distance = max(distance, abs(aVector[i] - bVector[i]))
-
-        return distance
 
 class Cluster:
     """
@@ -157,10 +126,14 @@ class Cluster:
         The name of the cluster.
 
     centroid : list[int|float]
-        The centroid of the cluster.
+        A vector that represents the central point of the cluster.
 
     vectors : list[list[int|float]]
         A list of vectors assigned to the cluster.
+
+    silhouetteScore : float
+        The silhouette score of the cluster.
+
 
     Methods
     -------
@@ -178,13 +151,14 @@ class Cluster:
             The name of the cluster.
 
         centroid : list[int|float], optional\n
-            The centroid of the cluster.\n
+            A vector that represents the central point of the cluster.\n
             (Default is an empty list).
         """
 
         self.name = name
         self.centroid = centroid
         self.vectors: list[list[int|float]] = []
+        self.silhouetteScore: float = 0
 
     def _Mean_Vector(self, vectors: list[list[int|float]]) -> list[int|float]:
         """
@@ -332,6 +306,9 @@ class kMeans:
     clusters : list[ Cluster ]
         A list of clusters.
 
+    silhouetteScore : float
+        The average silhouette score of the clusters.
+
     Methods
     -------
     Train() : int
@@ -364,13 +341,12 @@ class kMeans:
             "euclidean": Assign vectors to the cluster with the lowest *Euclidean* distance.\n
             "cosine": Assign vectors to the cluster with the highest *Cosine* similarity.\n
             "manhattan": Assign vectors to the cluster with the lowest *Manhattan* distance.\n
-            "chebyshev": Assign vectors to the cluster with the lowest *Chebyshev* distance.\n
             (Default is "euclidean").
 
         centroidStrategy : str, optional
             The strategy to use for recalculating the centroid of a cluster.\n
-            "mean": Recalculate the centroid by taking the average of all assigned vectors.\n
-            "median": Recalculate the centroid by taking the median of all assigned vectors.\n
+            "mean": Assign centroids to the average of a given cluster's vectors. Computes in $O(n)$ time.\n
+            "median":  Assign centroids to the median of a given cluster's vectors. Performs better with non-euclidean distance metrics. More resistant to outliers, but at a cost of increased run time, $O(n^2)$.\n
             (Default is "mean").
         
         maxEpochs : int, optional
@@ -387,6 +363,7 @@ class kMeans:
         self._Verify_Distance_Strategy()
         self._Verify_Centroid_Strategy()
         self.clusters = self._Initialize_Clusters()
+        self.silhouetteScore: float = 0
     
     def _Initialize_Clusters(self) -> list[Cluster]:
         """
@@ -413,10 +390,10 @@ class kMeans:
     
     def _Verify_Distance_Strategy(self) -> None:
         """
-        Verifies that the distance strategy parameter is either "euclidean", "cosine", "manhattan", or "chebyshev".
+        Verifies that the distance strategy parameter is either "euclidean", "cosine", or "manhattan".
         """
 
-        if self.distanceStrategy not in ["euclidean", "cosine", "manhattan", "chebyshev"]:
+        if self.distanceStrategy not in ["euclidean", "cosine", "manhattan"]:
             self.distanceStrategy = "euclidean"
     
     def _Verify_Centroid_Strategy(self) -> None:
@@ -443,8 +420,6 @@ class kMeans:
             return Distance_Functions().Cosine_Between
         elif self.distanceStrategy == "manhattan":
             return Distance_Functions().Manhattan_Between
-        elif self.distanceStrategy == "chebyshev":
-            return Distance_Functions().Chebyshev_Between
 
     def _Get_Nearest_Cluster(self, vector: list[int|float]) -> Cluster:
         """
@@ -513,6 +488,9 @@ class kMeans:
             # Increment epoch
             epoch += 1
 
+        # Calculate silhouette scores
+        self._Calculate_Silhouette_Scores()
+
         return epoch
     
     def Predict(self, vector: list[int|float]) -> Cluster:
@@ -532,6 +510,33 @@ class kMeans:
 
         return self._Get_Nearest_Cluster(vector)
     
+    def _Calculate_Silhouette_Scores(self) -> None:
+        for cIndex, cluster in enumerate(self.clusters):
+            silhouetteScores: list[float] = []
+
+            for vector in cluster.vectors:
+                # Get the distance between the vector and its centroid
+                vectorToCentroid: float = self._Get_Distance_Function()(vector, cluster.centroid)
+
+                # Get the distance between the vector and its nearest neighbor
+                otherCentroids: list[list[int|float]] = [
+                    cluster.centroid for cJndex, cluster in enumerate(self.clusters) if cIndex != cJndex
+                ]
+                vectorToNeighbor: float = min([self._Get_Distance_Function()(vector, centroid) for centroid in otherCentroids])
+
+                # Calculate the silhouette score
+                silhouetteScore: float = (vectorToNeighbor - vectorToCentroid) / max(vectorToNeighbor, vectorToCentroid)
+                silhouetteScores.append(silhouetteScore)
+
+            # Calculate the average silhouette score
+            avgSilhouetteScore: float = sum(silhouetteScores) / len(silhouetteScores)
+            cluster.silhouetteScore = round(avgSilhouetteScore, 4)
+
+        self.silhouetteScore = round(
+            number=sum([cluster.silhouetteScore for cluster in self.clusters]) / len(self.clusters),
+            ndigits=4
+        )
+
     def __dict__(self) -> dict:
         """
         Converts the parameters of the kMeans model into a dictionary.
